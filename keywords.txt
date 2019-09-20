@@ -1,0 +1,47 @@
+﻿#######################################
+# Syntax Coloring Map
+# SVM30  // paulvha September 2019
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+SVM30	KEYWORD1
+CO2eq	KEYWORD1
+TVOC	KEYWORD1
+svm_values	KEYWORD1
+humidity	KEYWORD1
+temperature	KEYWORD1
+H2_signal	KEYWORD1
+Ethanol_signal	KEYWORD1
+absolute_hum	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+SVM30	KEYWORD2
+begin	KEYWORD2
+GetId	KEYWORD2
+probe	KEYWORD2
+reset	KEYWORD2
+EnableDebugging	KEYWORD2
+GetFeatureSet	KEYWORD2
+GetValues	KEYWORD2
+MeasureTest	KEYWORD2
+TriggerSGP30	KEYWORD2
+GetBaseLines	KEYWORD2
+SetBaseLines	KEYWORD2
+GetBaseLine_CO2	KEYWORD2
+SetBaseLine_CO2	KEYWORD2
+SetBaseLine_TVOC	KEYWORD2
+GetBaseLine_TVOC	KEYWORD2
+GetDriverVersion	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
+SGP30	LITERAL1
+SHTC1	LITERAL1
