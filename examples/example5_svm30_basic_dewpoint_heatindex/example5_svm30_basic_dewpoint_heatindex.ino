@@ -1,7 +1,7 @@
-/*  example1 how to read information from SVM30
+/*  example1 how to read basic information from SVM30, including Dewpoint and heatindex
  *  
  *  By: paulvha@hotmail.com
- *  Date: September 20, 2019
+ *  Date: October 10, 2019
  *  Version : 1.0
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -43,6 +43,7 @@
  * Sparkfun ESP32 thing
  ******************************************************************************************
  * WARNING: THE SVM30 NEEDS BETWEEN 4.5V AND 5.5V (TYPICAL 5V). RUNNING ON 3v3 MAKES IT UNSTABLE.
+ * The SVM30 seems to have on-board pull-up resistors to +5V
  * THE ESP32 PINS CAN HANDLE UP TO 3v3 ONLY AND AS SUCH YOU USE A BI-DIRECTIONAL LEVEL CONVERTER. 
  * e.g. https://www.sparkfun.com/products/12009
  *****************************************************************************************
@@ -57,7 +58,7 @@
  *    Make sure :
  *      - use the VUSB pin to connect to the level converter (HV) and VCC of the SVM30
  *      - use the 3V3 pin to connect to the level converter (LV)
- *      - To select the Sparkfun ESP32 thing board before compiling
+ *      - Select the Sparkfun ESP32 thing board before compiling
  *      - connect GND, SDA, SCL lines to the level converter and SVM30
  *      - The serial monitor is NOT active (will cause upload errors)
  *      - Press GPIO 0 switch during connecting after compile to start upload to the board
@@ -84,7 +85,7 @@
  *      - use the VIN pin to connect to the level converter (HV) and VCC of the SVM30
  *      - use the 3V3 pin to connect to the level converter (LV)
  *      - connect GND, SDA, SCL lines to the level converter and SVM30
- *      - To select the Sparkfun ESP8266 thing board before compiling
+ *      - Select the Sparkfun ESP8266 thing board before compiling
  *      - The serial monitor is NOT active (will cause upload errors)
  *      - close the on-board DTR link during connecting after compile to start upload to the board
  */
@@ -102,6 +103,12 @@
  *//////////////////////////////////////////////////////////////
 #define DELAY 10
 
+/////////////////////////////////////////////////////////////
+/* define Temperature setting
+ * true = Celsius, false = Fahrenheit 
+ *//////////////////////////////////////////////////////////////
+#define CELSIUS true
+
 ///////////////////////////////////////////////////////////////
 /////////// NO CHANGES BEYOND THIS POINT NEEDED ///////////////
 ///////////////////////////////////////////////////////////////
@@ -113,7 +120,6 @@ void Errorloop(char *mess);
 void read_values();
 void read_baseline();
 void KeepTrigger(uint8_t del);
-
  
 #include <svm30.h>
 
@@ -124,11 +130,14 @@ void setup() {
   
   Serial.begin(115200);
 
-  Serial.println(F("Hi there, this is example 1.\nReading information from the SVM30"));
+  Serial.println(F("Hi there, this is example 5.\nReading basic information from the SVM30/heatindex/dewpoint \nincluding selecting Celsius or Fahrenheit"));
   
   // enable debug messages
   svm.EnableDebugging(DEBUG);
-  
+
+  // set Celsius or Fahrenheit
+  svm.SetTempCelsius(CELSIUS);
+
   svm.begin();
 
   Serial.print(F("Driver version : "));
@@ -149,10 +158,7 @@ void loop() {
   
   // read measurement values
   read_values();
-  
-  // read SGP30 baseline
-  read_baseline(); 
-  
+ 
   // wait x seconds
   KeepTrigger(DELAY);
 }
@@ -203,20 +209,25 @@ void read_values() {
   Serial.print(F(", TVOC : "));
   Serial.print(v.TVOC);
 
-  Serial.print(F(", H2_signal : "));
-  Serial.print(v.H2_signal);
-
-  Serial.print(F(", Ethanol_signal : "));
-  Serial.print(v.Ethanol_signal);
-
   Serial.print(F(", Humidity : "));
   Serial.print((float) v.humidity/1000);
 
   Serial.print(F(", temperature : "));
   Serial.print((float) v.temperature/1000);
 
-  Serial.print(F(", absolute humidity : "));
+  if (CELSIUS) Serial.print(F("C, absolute humidity : "));
+  else Serial.print(F("F, absolute humidity : "));
   Serial.print(v.absolute_hum);
+
+  Serial.print(F(", heat_index : "));
+  Serial.print(v.heat_index);
+  
+  if (CELSIUS) Serial.print(F("C, dew_point : "));
+  else Serial.print(F("F, dew_point : "));
+  Serial.print(v.dew_point);
+  
+  if (CELSIUS) Serial.println("C");
+  else Serial.println("F");
 }
 
 /*
@@ -261,26 +272,6 @@ void read_featureSet(){
   Serial.println();
 }
 
-/*
- * @brief: read the baselines of the SGP30 sensor
- * see example3 for extended information about baselines
- */
-void read_baseline(){
-
-  uint16_t baseline;
-  
-  if (! svm.GetBaseLine_CO2(&baseline))
-      Errorloop("could not read SGP30 CO2 baseline");
-
-  Serial.print(F(" CO2 equivalent baseline : 0x"));
-  Serial.print(baseline, HEX);
-
-  if (! svm.GetBaseLine_TVOC(&baseline))
-      Errorloop("could not read SGP30 TVOC baseline");
-  
-  Serial.print(F(", TVOC baseline : 0x"));
-  Serial.println(baseline, HEX);
-}
 
 /**
  *  @brief : continued loop after fatal error

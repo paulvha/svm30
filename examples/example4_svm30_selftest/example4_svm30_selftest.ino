@@ -1,8 +1,8 @@
-/*  example2 update regular humidity on SGP30 program and continued read information from SVM30
+/*  example4 Perform selft test on SGP30
  *  
  *  By: paulvha@hotmail.com
  *  Date: September 20, 2019
- *  Version: 1.0
+ *  Version : 1.0
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -39,9 +39,10 @@
  * 3. VCC  -----------   +5V
  * 4. SDA  -----------   A4
  * 
-* Sparkfun ESP32 thing
+ * Sparkfun ESP32 thing
  ******************************************************************************************
  * WARNING: THE SVM30 NEEDS BETWEEN 4.5V AND 5.5V (TYPICAL 5V). RUNNING ON 3v3 MAKES IT UNSTABLE.
+ * The SVM30 seems to have on-board pull-up resistors to +5V
  * THE ESP32 PINS CAN HANDLE UP TO 3v3 ONLY AND AS SUCH YOU USE A BI-DIRECTIONAL LEVEL CONVERTER. 
  * e.g. https://www.sparkfun.com/products/12009
  *****************************************************************************************
@@ -56,7 +57,7 @@
  *    Make sure :
  *      - use the VUSB pin to connect to the level converter (HV) and VCC of the SVM30
  *      - use the 3V3 pin to connect to the level converter (LV)
- *      - To select the Sparkfun ESP32 thing board before compiling
+ *      - Select the Sparkfun ESP32 thing board before compiling
  *      - connect GND, SDA, SCL lines to the level converter and SVM30
  *      - The serial monitor is NOT active (will cause upload errors)
  *      - Press GPIO 0 switch during connecting after compile to start upload to the board
@@ -83,10 +84,9 @@
  *      - use the VIN pin to connect to the level converter (HV) and VCC of the SVM30
  *      - use the 3V3 pin to connect to the level converter (LV)
  *      - connect GND, SDA, SCL lines to the level converter and SVM30
- *      - To select the Sparkfun ESP8266 thing board before compiling
+ *      - Select the Sparkfun ESP8266 thing board before compiling
  *      - The serial monitor is NOT active (will cause upload errors)
  *      - close the on-board DTR link during connecting after compile to start upload to the board
- * 
  */
 
 /////////////////////////////////////////////////////////////
@@ -96,12 +96,6 @@
  *//////////////////////////////////////////////////////////////
 #define DEBUG false
 
-/////////////////////////////////////////////////////////////
-/* define number of seconds between display results
- * 
- *//////////////////////////////////////////////////////////////
-#define DELAY 10
-
 ///////////////////////////////////////////////////////////////
 /////////// NO CHANGES BEYOND THIS POINT NEEDED ///////////////
 ///////////////////////////////////////////////////////////////
@@ -110,24 +104,18 @@
 void read_id();
 void read_featureSet();
 void Errorloop(char *mess);
-void read_values();
-void read_baseline();
-void KeepTrigger(uint8_t del);
-void update_humidity();
+void measuretest();
  
 #include <svm30.h>
 
 // create instance
 SVM30 svm;
 
-// store values
-struct svm_values v;
-
 void setup() {
   
   Serial.begin(115200);
 
-  Serial.println(F("Hi there, this is example 2.\nConstant update of the adbsolute humidity while reading information from the SVM30"));
+  Serial.println(F("Hi there, this is example 4.\nPerform a measure test on the SVM30"));
   
   // enable debug messages
   svm.EnableDebugging(DEBUG);
@@ -146,99 +134,26 @@ void setup() {
 
   // read SGP30 feature set
   read_featureSet();
+
+  // perform measure test
+  measuretest();
 }
 
 void loop() {
-  
-  // read measurement values
-  read_values();
-  
-  // read SGP30 baseline
-  read_baseline(); 
-
-  // update humidity based
-  update_humidity();
-  
-  // wait x seconds
-  KeepTrigger(DELAY);
-}
-
-/*
- * @brief : keep triggering SGP30 while waiting
- * 
- * @param del : number of seconds to wait
- * 
- * source datasheet SVM30:
- * The on-chip baseline compensation algorithm has been optimized 
- * for 1HZ sampling rate. The sensor shows best performance when 
- * used with this sampling rate.
- * 
- */
-void KeepTrigger(uint8_t del)
-{
-  uint8_t w_seconds = del;
-  unsigned long startMillis;
- 
-  if (w_seconds == 0) w_seconds = 1;
-  
-  while (w_seconds--)
-  {
-    startMillis = millis();
     
-    if (! svm.TriggerSGP30())
-      Errorloop("Error during trigger waiting");
-      
-    // this gives 1Hz /1000ms (aboutisch)
-    while(millis() - startMillis < 1000);
-  }
 }
 
-/*
- * @brief : read and display the values from the SVM30
- * 
+/**
+ * @brief : perform self-test SGP30
  */
-void read_values() {
+void measuretest() {
 
-  if (! svm.GetValues(&v))
-      Errorloop("Error during reading values");
+  Serial.println(F("Starting Self test SGP30 / measure test"));
 
-  Serial.print(F("CO2 equivalent : "));
-  Serial.print(v.CO2eq);
+  if (! svm.MeasureTest())
+      Errorloop("Error during MeasureTest");
 
-  Serial.print(F(", TVOC : "));
-  Serial.print(v.TVOC);
-
-  Serial.print(F(", H2_signal : "));
-  Serial.print(v.H2_signal);
-
-  Serial.print(F(", Ethanol_signal : "));
-  Serial.print(v.Ethanol_signal);
-
-  Serial.print(F(", Humidity : "));
-  Serial.print((float) v.humidity/1000);
-
-  Serial.print(F(", temperature : "));
-  Serial.print((float) v.temperature/1000);
-
-  Serial.print(F(", absolute humidity : "));
-  Serial.print(v.absolute_hum);
-}
-
-/*
- * @brief: update absolute humidity on the SGP30 based on the earlier reading of temperature and humidity 
- * from the SHTC1
- */
-void update_humidity() {
-  
-  Serial.print(F("update humidity..."));
-  
-  if ( ! svm.SetHumidity(v.absolute_hum))
-      Errorloop("could not update humidity on the SGP30");
-  
-  // give time to settle (max 10 according to datasheet)
-  delay(10);
-
-  Serial.println(F("done"));
+  Errorloop("Measure test completed");
 }
 
 /*
@@ -246,7 +161,7 @@ void update_humidity() {
  */
 void read_id() {
   
-  uint16_t buf[3];    // SGP30 is 3 words, SHTC1 is 1 word
+  uint16_t buf[3];    // SGP30 needs 3 words, SHTC1 is 1 word
   char  id[15];
   
   if ( ! svm.GetId(SGP30, buf))
@@ -281,27 +196,6 @@ void read_featureSet(){
   Serial.print(F(", Product version : "));
   Serial.println(buf[1], HEX);
   Serial.println();
-}
-
-/*
- * @brief: read the baselines of the SGP30 sensor
- * see example3 for extended information about baselines
- */
-void read_baseline(){
-
-  uint16_t baseline;
-  
-  if (! svm.GetBaseLine_CO2(&baseline))
-      Errorloop("could not read SGP30 CO2 baseline");
-
-  Serial.print(F(" CO2 equivalent baseline : 0x"));
-  Serial.print(baseline, HEX);
-
-  if (! svm.GetBaseLine_TVOC(&baseline))
-      Errorloop("could not read SGP30 TVOC baseline");
-  
-  Serial.print(F(", TVOC baseline : 0x"));
-  Serial.println(baseline, HEX);
 }
 
 /**

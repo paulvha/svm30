@@ -1,6 +1,6 @@
 ﻿#######################################
 # Syntax Coloring Map
-# SVM30  // paulvha September 2019
+# SVM30  // paulvha October 2019
 #######################################
 
 #######################################
@@ -16,6 +16,8 @@ temperature	KEYWORD1
 H2_signal	KEYWORD1
 Ethanol_signal	KEYWORD1
 absolute_hum	KEYWORD1
+heat_index	KEYWORD1
+dew_point	KEYWORD1
 
 #######################################
 # Methods and Functions (KEYWORD2)
@@ -38,6 +40,7 @@ SetBaseLine_CO2	KEYWORD2
 SetBaseLine_TVOC	KEYWORD2
 GetBaseLine_TVOC	KEYWORD2
 GetDriverVersion	KEYWORD2
+SetTempCelsius	KEYWORD2
 
 #######################################
 # Constants (LITERAL1)

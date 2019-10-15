@@ -36,8 +36,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  **********************************************************************
- * Version 1.0   / September 2019
- * - Initial version by paulvha
+ * Version 1.0 / September 2019 / paulvha
+ * - Initial version
+ *
+ * Version 1.1 / October 2019 / paulvha
+ * - added dewPoint and heatindex
+ * - added Temperature selection (Fahrenheit / Celsius)
+ * - updated examples
+ * - added examples 5 and 6
  *
  *********************************************************************
  */
@@ -49,7 +55,7 @@
 #include "Wire.h"               // for I2c
 
 // set driver version
-#define VERSION "1.0 / September 2019";
+#define VERSION "1.1 / October 2019";
 
 /* structure to return measurement values */
 typedef struct svm_values
@@ -63,6 +69,8 @@ typedef struct svm_values
     uint16_t   TVOC;          // SGP30
     uint16_t   H2_signal;     // SGP30 Raw H2 signal
     uint16_t   Ethanol_signal;// SGP30 Raw ethanol signal
+    float      heat_index;    // calculated heat index
+    float      dew_point;     // calculated dew point
 };
 
 /*
@@ -200,13 +208,13 @@ class SVM30
     bool GetId(uint8_t device, uint16_t *buf);
 
     /**
-    * @brief reset SGP30 or SHTC1
-    *
-    * @param device : I2C address of device
-    *
-    * @return :
-    *   true on success else false
-    */
+     * @brief reset SGP30 or SHTC1
+     *
+     * @param device : I2C address of device
+     *
+     * @return :
+     *   true on success else false
+     */
     bool reset(uint8_t device);
 
     /**
@@ -298,6 +306,16 @@ class SVM30
      */
     bool GetValues(struct svm_values *v);
 
+    /**
+     * @brief : Set temperature.
+     *
+     * @param act :
+     *  true set to Celsius,
+     *  false is Fahrenheit
+     *
+     */
+    void SetTempCelsius(bool act);
+
   private:
 
     /** shared variables */
@@ -305,9 +323,8 @@ class SVM30
     uint8_t _Send_BUF[10];      // 2 command + max 6 data
     uint8_t _Receive_BUF_Length;
     uint8_t _Send_BUF_Length;
-
     uint8_t _I2C_address;       // I2C address to use (SGP30 or SHTC1)
-
+    bool    _SelectTemp;        // select temperature (true = celsius)
     bool     _SVM30_Debug;      // program debug level
     bool    _started;           // indicate the SGP30 measurement has started
     uint8_t _wait;              // wait time after sending command
@@ -315,10 +332,12 @@ class SVM30
     /** supporting routines */
     bool StartSGP30();
     uint16_t byte_to_uint16(int x);
-    float calc_absolute_humidity(int32_t temperature, int32_t humidity);
+    void calc_absolute_humidity(struct svm_values *v);
     uint16_t ConvAbsolute(float AbsoluteHumidity);
     bool SetBaseLine(uint16_t baseline, bool tvoc);
     bool GetBaseLine(uint16_t *baseline, bool tvoc);
+    void computeHeatIndex(struct svm_values *v);
+    void calc_dewpoint(struct svm_values *v);
 
     /** I2C communication */
     void PrepSendBuffer(uint8_t I2C_add, uint16_t cmd, char *param = NULL, uint8_t len = 0);

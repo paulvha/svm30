@@ -1,29 +1,8 @@
-/*  example3 update baseline and continued read information from SVM30
- *   
+/*  example2 update regular humidity on SGP30 program and continued read information from SVM30
+ *  
  *  By: paulvha@hotmail.com
- *  Date: September , 2019
- *  Version : 1.0
- *   
- *  Baseline handling on the SGP32 seems to be half documented and partly 
- *  documented in error.
- *  
- *  1. The order is of reading and sending is TVOC, CO2eq (the datasheet is
- *  mixing the order up for reading)
- *  
- *  2. When sending the baseline values, each word needs to be followed with a
- *  CRC (not defined in the datasheet)
- *  
- *  3. Setting a baseline value of zero on CO2 causes CO2 baseline to be the
- *  same as TVOC. Setting values of zero should be avoided (not documented)
- *  
- *  4. TVOC baseline can be set by sending only 1 word/baseline + CRC. (Not documented)
- *  
- *  5. When setting baseline during the first 15 seconds afer power-up/reset, update 
- *  baseline for CO2 first, then TVOC. Else setting will fail.
- *  
- *  6. After setting the baseline value, it will NOT change/ updated. Once it 
- *  is updated the Baseline stays what it is. (not documented)
- *  
+ *  Date: September 20, 2019
+ *  Version: 1.0
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -60,10 +39,10 @@
  * 3. VCC  -----------   +5V
  * 4. SDA  -----------   A4
  * 
- * 
- * connected to ESP32
+ * Sparkfun ESP32 thing
  ******************************************************************************************
  * WARNING: THE SVM30 NEEDS BETWEEN 4.5V AND 5.5V (TYPICAL 5V). RUNNING ON 3v3 MAKES IT UNSTABLE.
+ * The SVM30 seems to have on-board pull-up resistors to +5V
  * THE ESP32 PINS CAN HANDLE UP TO 3v3 ONLY AND AS SUCH YOU USE A BI-DIRECTIONAL LEVEL CONVERTER. 
  * e.g. https://www.sparkfun.com/products/12009
  *****************************************************************************************
@@ -78,7 +57,7 @@
  *    Make sure :
  *      - use the VUSB pin to connect to the level converter (HV) and VCC of the SVM30
  *      - use the 3V3 pin to connect to the level converter (LV)
- *      - To select the Sparkfun ESP32 thing board before compiling
+ *      - Select the Sparkfun ESP32 thing board before compiling
  *      - connect GND, SDA, SCL lines to the level converter and SVM30
  *      - The serial monitor is NOT active (will cause upload errors)
  *      - Press GPIO 0 switch during connecting after compile to start upload to the board
@@ -105,10 +84,9 @@
  *      - use the VIN pin to connect to the level converter (HV) and VCC of the SVM30
  *      - use the 3V3 pin to connect to the level converter (LV)
  *      - connect GND, SDA, SCL lines to the level converter and SVM30
- *      - To select the Sparkfun ESP8266 thing board before compiling
+ *      - Select the Sparkfun ESP8266 thing board before compiling
  *      - The serial monitor is NOT active (will cause upload errors)
  *      - close the on-board DTR link during connecting after compile to start upload to the board
- *
  */
 
 /////////////////////////////////////////////////////////////
@@ -124,13 +102,6 @@
  *//////////////////////////////////////////////////////////////
 #define DELAY 10
 
-/////////////////////////////////////////////////////////////
-/* define new baselines
- * 
- *//////////////////////////////////////////////////////////////
-#define BASE_CO2  0x8F8A
-#define BASE_TVOC 0x90B3
-
 ///////////////////////////////////////////////////////////////
 /////////// NO CHANGES BEYOND THIS POINT NEEDED ///////////////
 ///////////////////////////////////////////////////////////////
@@ -140,10 +111,10 @@ void read_id();
 void read_featureSet();
 void Errorloop(char *mess);
 void read_values();
-void read_baseline(bool ind);
-void update_baseline(uint16_t base_co2, uint16_t base_TVOC, bool ind );
+void read_baseline();
 void KeepTrigger(uint8_t del);
-
+void update_humidity();
+ 
 #include <svm30.h>
 
 // create instance
@@ -156,7 +127,7 @@ void setup() {
   
   Serial.begin(115200);
 
-  Serial.println(F("Hi there, this is example 3.\nUpdate of the baseline while reading information from the SVM30"));
+  Serial.println(F("Hi there, this is example 2.\nConstant update of the adbsolute humidity while reading information from the SVM30"));
   
   // enable debug messages
   svm.EnableDebugging(DEBUG);
@@ -178,71 +149,18 @@ void setup() {
 }
 
 void loop() {
-
-  static bool OnlyOnce = true;
   
   // read measurement values
   read_values();
+  
+  // read SGP30 baseline
+  read_baseline(); 
 
-  // read SGP30 baseline (see remark at read_baseline about true/false)
-  read_baseline(true);
-
-  // update one time
-  if (OnlyOnce){
-    update_baseline(BASE_CO2, BASE_TVOC, false);
-    OnlyOnce = false;
-  }
-   
+  // update humidity based
+  update_humidity();
+  
   // wait x seconds
   KeepTrigger(DELAY);
-}
-
-/*
- * @brief : update baseline values
- * 
- * @param ind :
- *  true : use individual baseline calls to set
- *  false : set with one call the baselines
- *  
- *  The 'ind' parameter was only added to show the example
- */
-
-void update_baseline(uint16_t base_co2, uint16_t base_TVOC, bool ind ){
- 
-  uint32_t base32;
-  
-  if (ind){
-    
-    //Serial.println("set individual baseline");
-    
-    if (base_co2 != 0) {
-      if (! svm.SetBaseLine_CO2(base_co2))
-          Errorloop("Error during updating baseline CO2");
-      } 
-    else
-      Serial.println("Skipping update baseline CO2 equivalent");
-  
-    if (base_TVOC != 0) {
-      if (! svm.SetBaseLine_TVOC(base_TVOC))
-          Errorloop("Error during updating baseline TVOC");
-      }
-    else
-      Serial.println("Skipping update baseline TVOC");
-  }
-  else {
-    
-    //Serial.println("set baselines in one call");
-    
-    if (base_co2 == 0 || base_TVOC == 0 ) {
-      Serial.println("Skipping update baselines");
-      return;
-    }
-    
-    base32 = base_TVOC << 16 | base_co2;
-    
-    if (! svm.SetBaseLines(base32))
-        Errorloop("Error during updating baselines");
-  } 
 }
 
 /*
@@ -307,11 +225,28 @@ void read_values() {
 }
 
 /*
+ * @brief: update absolute humidity on the SGP30 based on the earlier reading of temperature and humidity 
+ * from the SHTC1
+ */
+void update_humidity() {
+  
+  Serial.print(F("update humidity..."));
+  
+  if ( ! svm.SetHumidity(v.absolute_hum))
+      Errorloop("could not update humidity on the SGP30");
+  
+  // give time to settle (max 10 according to datasheet)
+  delay(10);
+
+  Serial.println(F("done"));
+}
+
+/*
  * @brief: read and display the id of the SGP30 and SHTC1 sensors
  */
 void read_id() {
   
-  uint16_t buf[3];    // SGP30 needs 3 words, SHTC1 is 1 word
+  uint16_t buf[3];    // SGP30 is 3 words, SHTC1 is 1 word
   char  id[15];
   
   if ( ! svm.GetId(SGP30, buf))
@@ -325,7 +260,6 @@ void read_id() {
       Errorloop("could not read SHTC1 id");
 
   Serial.print(F("SHTC1 id : "));
-  
   // only bit 5:0 matter (source: datasheet)
   sprintf(id, "%04x", buf[0] & 0x3f);
   Serial.println(id);
@@ -351,50 +285,23 @@ void read_featureSet(){
 
 /*
  * @brief: read the baselines of the SGP30 sensor
- * 
- * @param ind :
- *  true : obtain with individual calls
- *  false : obtain with one call
- *  
- *  The 'ind' parameter was only added to show the example
+ * see example3 for extended information about baselines
  */
-void read_baseline(bool ind){
+void read_baseline(){
 
   uint16_t baseline;
-  uint32_t base32;
   
-  if(ind) {
-    
-    // Serial.println("read individual");
-    
-    if (! svm.GetBaseLine_CO2(&baseline))
-        Errorloop("could not read SGP30 CO2 baseline");
+  if (! svm.GetBaseLine_CO2(&baseline))
+      Errorloop("could not read SGP30 CO2 baseline");
+
+  Serial.print(F(" CO2 equivalent baseline : 0x"));
+  Serial.print(baseline, HEX);
+
+  if (! svm.GetBaseLine_TVOC(&baseline))
+      Errorloop("could not read SGP30 TVOC baseline");
   
-    Serial.print(F(" CO2 equivalent baseline : 0x"));
-    Serial.print(baseline, HEX);
-  
-    if (! svm.GetBaseLine_TVOC(&baseline))
-        Errorloop("could not read SGP30 TVOC baseline");
-    
-    Serial.print(F(", TVOC baseline : 0x"));
-    Serial.println(baseline, HEX);
-  }
-  
-  else {
-    
-    //Serial.println("read with one call");
-    
-    if (! svm.GetBaseLines(&base32))
-        Errorloop("could not read SGP30 baselines");
-  
-    Serial.print(F(" CO2 equivalent baseline : 0x"));
-    baseline = base32 & 0xffff;
-    Serial.print(baseline, HEX);
-    
-    Serial.print(F(", TVOC baseline : 0x"));
-    baseline = base32 >> 16;
-    Serial.println(baseline, HEX);
-  }
+  Serial.print(F(", TVOC baseline : 0x"));
+  Serial.println(baseline, HEX);
 }
 
 /**

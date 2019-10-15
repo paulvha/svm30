@@ -36,8 +36,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  **********************************************************************
- * Version 1.0   / September 2019
- * - Initial version by paulvha
+ * Version 1.0 / September 2019 / paulvha
+ * - Initial version
+ *
+ * Version 1.1 / October 2019 / paulvha
+ * - added dewPoint and heatindex
+ * - added Temperature selection (Fahrenheit / Celsius)
+ * - updated examples
+ * - added example 5
  *
  *********************************************************************
  */
@@ -54,6 +60,7 @@ SVM30::SVM30(void) {
   _SVM30_Debug = false;
   _started = false;
   _wait = DEFAULT_WAIT;        // wait time after sending command
+  _SelectTemp = true;          // default to celsius
 }
 
 /**
@@ -117,6 +124,16 @@ const char * SVM30::GetDriverVersion() {
 }
 
 /**
+ * @brief : Set temperature.
+ *
+ * @param act : true is Celsius, false is Fahrenheit
+ *
+ */
+void SVM30::SetTempCelsius(bool act) {
+    _SelectTemp = act;
+}
+
+/**
  * @brief : reset SGP30 or SHTC1
  *
  * @param device : I2C address of device
@@ -138,8 +155,12 @@ bool SVM30::reset(uint8_t device) {
 
     // send Request to sensor(s)
     if (SendToSVM() != ERR_OK) {
-        if (_SVM30_Debug) printf("Error during reset\n");
-        return(false);
+
+        // on the SGP30 this could be normal, so ignore
+        if (device == SHTC1_ADDRESS) {
+            if (_SVM30_Debug) printf("Error during reset\n");
+            return(false);
+        }
     }
 
     // give time to settle reset
@@ -148,6 +169,72 @@ bool SVM30::reset(uint8_t device) {
     _started = false;
 
     return(true);
+}
+
+/**
+ * @brief calculate dew point
+ *
+ * Using both Rothfusz and Steadman's equations
+ *  http://www.wpc.ncep.noaa.gov/html/heatindex_equation.shtml
+ */
+void SVM30::computeHeatIndex(struct svm_values *v) {
+
+  float hi, temperature;
+
+  /* if Celsius turn to Fahrenheit */
+  if (_SelectTemp) temperature = (v->temperature/1000 * 1.8) + 32;
+  else temperature = v->temperature /1000;
+
+  float percentHumidity = v->humidity/1000;
+
+  /* calculate */
+  hi = 0.5 * (temperature + 61.0 + ((temperature - 68.0) * 1.2) + (percentHumidity * 0.094));
+
+  if (hi > 79) {
+    hi = -42.379 +
+             2.04901523 * temperature +
+            10.14333127 * percentHumidity +
+            -0.22475541 * temperature*percentHumidity +
+            -0.00683783 * pow(temperature, 2) +
+            -0.05481717 * pow(percentHumidity, 2) +
+             0.00122874 * pow(temperature, 2) * percentHumidity +
+             0.00085282 * temperature*pow(percentHumidity, 2) +
+            -0.00000199 * pow(temperature, 2) * pow(percentHumidity, 2);
+
+    if((percentHumidity < 13) && (temperature >= 80.0) && (temperature <= 112.0))
+      hi -= ((13.0 - percentHumidity) * 0.25) * sqrt((17.0 - abs(temperature - 95.0)) * 0.05882);
+
+    else if((percentHumidity > 85.0) && (temperature >= 80.0) && (temperature <= 87.0))
+      hi += ((percentHumidity - 85.0) * 0.1) * ((87.0 - temperature) * 0.2);
+  }
+
+  /* if celsius was input, convert Fahrenheit to Celsius */
+  if (_SelectTemp) v->heat_index = (hi - 32) * 0.55555;
+  else  v->heat_index = hi;
+}
+
+/**
+ * @brief calculate dew point
+ *
+ * using the Augst-Roche-Magnus Approximation.
+ *
+ */
+void SVM30::calc_dewpoint(struct svm_values *v) {
+
+    float H;
+
+    float temp = (float) v->temperature /1000;
+    float hum = (float) v->humidity/1000;
+
+    /* if Fahrenheit turn to Celsius */
+    if (! _SelectTemp)  temp = (temp -  32) * 0.55555;
+
+    /* calculate */
+    H = log(hum/100) + ((17.625 * temp) / (243.12 + temp));
+    v->dew_point = 243.04 * H / (17.625 - H);
+
+    /* if Fahrenheit was input, convert */
+    if (! _SelectTemp) v->dew_point = (v->dew_point * 1.8) + 32;
 }
 
 /**
@@ -209,7 +296,7 @@ bool SVM30::MeasureTest() {
         return(false);
     }
 
-    if (restart)  return(StartSGP30());
+    if (restart) return(StartSGP30());
 
     return(true);
 }
@@ -389,10 +476,10 @@ bool SVM30::SetHumidity(float humidity) {
 }
 
 /**
- * @brief read ID number from SGP30 or SHTC1
+ * @brief : read ID number from SGP30 or SHTC1
  *
  * @param device : I2C address of device (SGP30 or SHTC1)
- * @param buf : buffer to store ID (SGP30 : 3 words, SHTC1 : 1 word)
+ * @param buf    : buffer to store ID (SGP30 : 3 words, SHTC1 : 1 word)
  *
  * @return :
  *   true on success else false
@@ -488,7 +575,8 @@ bool SVM30::TriggerSGP30() {
 }
 
 /**
- * @brief : read all measurement values from the sensor and store in structure
+ * @brief : read all measurement values from the sensor
+ *          calculate others and store in structure
  * @param v: pointer to structure to store
  *
  * @return :
@@ -528,11 +616,18 @@ bool SVM30::GetValues(struct svm_values *v) {
     v->r_temperature = byte_to_uint16(0);
     v->r_humidity  = byte_to_uint16(2);
 
+    /** different calculations */
     // convert to useable temperature and humidity
     shtc1_conv(&v->temperature, &v->humidity, v->r_temperature, v->r_humidity);
 
     // calculate absolute humidity
-    v->absolute_hum = calc_absolute_humidity(v->temperature, v->humidity);
+    calc_absolute_humidity(v);
+
+    // calculate heat Index
+    computeHeatIndex(v);
+
+    // calculate dew_point
+    calc_dewpoint(v);
 
     return(true);
 }
@@ -610,7 +705,7 @@ uint8_t SVM30::SendToSVM() {
 
     _Send_BUF_Length = 0;
 
-    // give time to settle
+    // give time to react on request
     delay(_wait);
 
     return(ERR_OK);
@@ -686,11 +781,11 @@ uint8_t SVM30::ReadFromSVM(uint8_t count) {
 
     delay(5);
 
-    while (Wire.available()) { // wait till all arrive
+    while (Wire.available()) {
 
         data[i++] = Wire.read();
 
-        // 2 bytes RH, 1 CRC
+        // 2 bytes data, 1 CRC
         if( i == 3) {
 
             if (data[2] != CalcCrC(&data[0])){
@@ -754,22 +849,17 @@ uint8_t SVM30::CalcCrC(uint8_t *data) {
 /**
  * @brief : calculate the absolute humidity from relative humidity [%RH *1000]
  * and temperature [mC]
- *
- * @param temperature : temperature in mC
- * @param humidity : humidity in %RH * 1000
- *
- * return : Absolute value
  */
+void SVM30::calc_absolute_humidity(struct svm_values *v) {
+    float Temp = (float) v->temperature /1000;
+    float Hum = (float) v->humidity/1000;
 
-float SVM30::calc_absolute_humidity(int32_t temperature, int32_t humidity) {
-    float Temp = (float) temperature/1000;
-    float Hum = (float) humidity/1000;
+    // if temperature is Fahrenheit turn to Celsius
+    if (! _SelectTemp) Temp = (Temp - 32) * 0.55555;
 
-    if (Hum == 0) return(0);
+    if (Hum == 0) return;
 
-    float AbsoluteHumidity = (6.112 * pow(2.71828,((17.67 * Temp)/(Temp + 243.5))) * Hum * 2.1674) / (273.15 + Temp);
-
-    return(AbsoluteHumidity);
+    v->absolute_hum = (6.112 * pow(2.71828,((17.67 * Temp)/(Temp + 243.5))) * Hum * 2.1674) / (273.15 + Temp);
 }
 
 /**
@@ -839,6 +929,10 @@ void SVM30::shtc1_conv(int32_t *temperature, int32_t *humidity, uint16_t temp, u
      * Temperature = 175 * S_T / 2^16 - 45
      * Relative Humidity = 100 * S_RH / 2^16
      */
+     //*temperature = ((175 * tmp) >> 16 -45) *1000;
     *temperature = ((21875 * (int32_t)temp) >> 13) - 45000;
+
+    // Fahrenheit requested ?
+    if (! _SelectTemp) *temperature = *temperature * 1.8 + 32000;
     *humidity = ((12500 * (int32_t)hum) >> 13);
 }
