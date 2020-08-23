@@ -1,6 +1,6 @@
 ﻿#######################################
 # Syntax Coloring Map
-# SVM30  // paulvha October 2019
+# SVM30  // paulvha August 2020
 #######################################
 
 #######################################
@@ -41,6 +41,8 @@ SetBaseLine_TVOC	KEYWORD2
 GetBaseLine_TVOC	KEYWORD2
 GetDriverVersion	KEYWORD2
 SetTempCelsius	KEYWORD2
+GetInceptiveBaseLine_TVOC	KEYWORD2
+SetInceptiveBaseLine_TVOC	KEYWORD2
 
 #######################################
 # Constants (LITERAL1)

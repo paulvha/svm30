@@ -4,16 +4,17 @@
 
 A program to set instructions and get information from an SVM30. It has been
 tested to run on ESP32, MEGA2560, ESP8266, UNO and Feather Lora 32U4.
+It will also work on Wire1 for a DUE, because of the onboard pull-up resistors on the standard Wire. use example7
 <br> A detailed description of the options and findings are available in the SVM30.ODT in the extra directory
 
 <br>A version for the Raspberry Pi is available on ![https://github.com/paulvha/SVM30_on_raspberry](https://github.com/paulvha/SVM30_on_raspberry)
 
 ## Getting Started
 As part of a larger project I am looking at analyzing and understanding the air quality.
-I have done a number of projects on air-sensors. The SVM30 sensor is a new kid on the block
+I have done a number of projects on air-sensors. The SVM30 sensor was a new kid on the block
 that looks interesting. This is a working driver + examples.
 
-A word of warning: the SVM30 needs a female plug, which is different depending on the rpoduct version of your board
+A word of warning: the SVM30 needs a female plug, which is different depending on the product version of your board
 
 SVM30-Y  Yeonho Electronics, 20037WR-04 <br>
 SVM30-J  Scondar SCT2001WR -S-4P compatible to JST part no. S4B-PH-SM4-TB <br>
@@ -34,6 +35,7 @@ Obtain the zip and install like any other.
  - 4. perform a self-test on the SGP30
  - 5. Read basic information, add functions for heatindex, dewpoint and Celsius/Fahrenheit selection
  - 6. Sketch to read the data from the SVM30 and connect Feather Lora 32U4 to TTN
+ - 7. like example1 but you can now select different Wire-channels (Needed for DUE)
 <br>Please see the description in the top of the sketches as well as the SVM30.ODT
 
 ## Versioning
@@ -47,6 +49,13 @@ Obtain the zip and install like any other.
  * updated examples
  * added example 5 and 6
 
+### Version 1.2 / August 2020
+ * it seems that older product version(level 9) of the SGP30 / SVM30 fail to read raw data.
+ * added raw boolean (default true) to include(true) / exclude (false) raw data in case of older product version.
+ * added read-delay setting based on the kind of command request to improve stability
+ * added example7 to select and I2C/ Wire channel (Wire1 is needed for Arduino Due)
+ * added functions for inceptive baseline of the SGP30 (requires level 34 at least). Documented in SGP30 datasheet May 2020.
+
 ## Author
  * Paul van Haastrecht (paulvha@hotmail.com)
 
@@ -56,4 +65,5 @@ This project is licensed under the GNU GENERAL PUBLIC LICENSE 3.0
 ## Acknowledgements
 Make sure to read the SVM30, SHTC1 and SGP30 datasheets from Sensirion.
 They provide good starting point for information and are added in the extras directory.<br>
-Philipp : Extra clarification on about female plug
+Philipp : Extra clarification on about female plug.
+Amy Kim : Help diagnosing older product version raw-reading issue.

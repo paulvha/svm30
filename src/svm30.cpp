@@ -45,6 +45,13 @@
  * - updated examples
  * - added example 5
  *
+ * Version 1.2 / August 2020 / paulvha
+ * it seems that older product version(level 9) of the SGP30 /SVM30 fail to read raw data.
+ * added support to exclude reading the raw data.
+ *
+ * - added raw boolean (default true) to include(true) / exclude (false) raw data
+ * - added read-delay setting based on the kind of command request.
+ * - added support for inceptive baseline of the SGP30 (requires level 34 at least)
  *********************************************************************
  */
 
@@ -89,6 +96,25 @@ bool SVM30::StartSGP30() {
 }
 
 /**
+ * @brief Manual assigment I2C communication port added 1.2
+ *
+ * @param port : I2C communication channel to be used
+ *
+ * User must have preform the wirePort.begin() in the sketch.
+ */
+bool SVM30::begin(TwoWire *wirePort)
+{
+    _i2cPort = wirePort; // Grab which port the user wants us to use
+
+    if (! reset(SGP30)) return(false);
+
+    // start SGP30
+    return(StartSGP30());
+
+    return(true);
+}
+
+/**
  * @brief : Initialize the communication
  *
  * @return :
@@ -96,6 +122,7 @@ bool SVM30::StartSGP30() {
  */
 bool SVM30::begin() {
     Wire.begin();
+    _i2cPort = &Wire;
 
     if (! reset(SGP30)) return(false);
 
@@ -163,8 +190,8 @@ bool SVM30::reset(uint8_t device) {
         }
     }
 
-    // give time to settle reset
-    delay(500);
+    // give time to settle reset // WAS 500
+    delay(1000);
 
     _started = false;
 
@@ -353,6 +380,67 @@ bool SVM30::GetBaseLine(uint16_t *baseline , bool tvoc) {
     // copy baseline
     if (tvoc)   *baseline = byte_to_uint16(0);
     else *baseline = byte_to_uint16(2);
+
+    return(true);
+}
+
+/**
+ * @brief : get Inceptivebaseline  (impact TVOC only)
+ *
+ * See datasheet May 2020 SGP30
+ *
+ * !!! REQUIRES LEVEL 34 FEATURE SET !!!
+ * @param *baseline
+ *   Store the baseline
+ *
+ * @return :
+ *   true on success else false
+ */
+bool SVM30::GetInceptiveBaseLine_TVOC(uint16_t *baseline) {
+    PrepSendBuffer(SGP30_ADDRESS, SGP30_Get_tvoc_inceptive_baseline);
+
+    // send Request and read from sensor
+    if (RequestFromSVM(2) != ERR_OK) {
+        if (_SVM30_Debug) printf("Error during reading Inceptivebaseline\n");
+        return(false);
+    }
+
+    // copy baseline
+    *baseline = byte_to_uint16(0);
+
+    return(true);
+}
+
+/**
+ * @brief : set Inceptivebaseline  (impact TVOC only)
+ *
+ * See datasheet May 2020 SGP30
+ *
+ * !!! REQUIRES LEVEL 34 FEATURE SET !!!
+ * @param baseline
+ *      Store the baseline to set (previous obtained with GetInceptiveBaseLine_TVOC
+ *
+ * @return :
+ *   true on success else false
+ */
+bool SVM30::SetInceptiveBaseLine_TVOC(uint16_t baseline) {
+    char    data[2];
+
+    if (baseline == 0x0) {
+         if (_SVM30_Debug) printf("Error during setting Inceptivebaseline. Baseline can NOT be zero\n");
+         return(false);
+    }
+
+    data[0] = (baseline >> 8) & 0xff;// MSB
+    data[1] = baseline & 0xff;       // LSB
+
+    PrepSendBuffer(SGP30_ADDRESS, SGP30_Set_tvoc_inceptive_baseline, data, 2);
+
+    // send Request to sensor
+    if (SendToSVM() != ERR_OK) {
+        if (_SVM30_Debug) printf("Error during setting Inceptivebaseline\n");
+        return(false);
+    }
 
     return(true);
 }
@@ -578,11 +666,15 @@ bool SVM30::TriggerSGP30() {
  * @brief : read all measurement values from the sensor
  *          calculate others and store in structure
  * @param v: pointer to structure to store
+ * @param raw: if true it will try to read the raw values from the SGP30 (update 1.2)
+ *
+ * It seems that older version of the SGP30 do not support reading raw, hence the "raw" -option
+ * has been added as an option to exclude. By default it will read to stay backward compatible
  *
  * @return :
  *   true on success else false
  */
-bool SVM30::GetValues(struct svm_values *v) {
+bool SVM30::GetValues(struct svm_values *v, bool raw) {
     memset(v,0x0,sizeof(struct svm_values));
 
     /** data from SGP30  */
@@ -591,18 +683,23 @@ bool SVM30::GetValues(struct svm_values *v) {
     v->CO2eq = byte_to_uint16(0);
     v->TVOC  = byte_to_uint16(2);
 
-    // get raw H2 signal and Ethanol signal
-    PrepSendBuffer(SGP30_ADDRESS, SGP30_Measure_Raw_Signals);
+    if (raw){
+        // get raw H2 signal and Ethanol signal
+        PrepSendBuffer(SGP30_ADDRESS, SGP30_Measure_Raw_Signals);
 
-    // send Request and read from sensor
-    if (RequestFromSVM(4) != ERR_OK) {
-        if (_SVM30_Debug) printf("Error during reading Raw signals\n");
-        return(false);
+        // send Request and read from sensor
+        if (RequestFromSVM(4) != ERR_OK) {
+            if (_SVM30_Debug) printf("Error during reading Raw signals\n");
+            return(false);
+        }
+
+        v->H2_signal = byte_to_uint16(0);
+        v->Ethanol_signal  = byte_to_uint16(2);
     }
-
-    v->H2_signal = byte_to_uint16(0);
-    v->Ethanol_signal  = byte_to_uint16(2);
-
+    else {
+        v->H2_signal = 0;
+        v->Ethanol_signal  = 0;
+    }
     /** data from SHTC1 */
     PrepSendBuffer(SHTC1_ADDRESS, SHTC1_Read_Temp_First);
 
@@ -680,6 +777,21 @@ void SVM30::PrepSendBuffer(uint8_t device, uint16_t cmd, char *param, uint8_t le
         }
     }
 
+    // 1.2 : the delay is now depending on the Measurement Commands typical
+    // timing as defined in the datasheet table 13
+
+    switch(cmd) {
+        case SGP30_Measure_Test:
+            ReadDelay = 220;
+            break;
+        case SGP30_Measure_Raw_Signals:
+            ReadDelay = 25;
+            break;
+        default:
+            ReadDelay = 10; // default 10 ms
+            break;
+    }
+
     _Send_BUF_Length = i;
 }
 
@@ -699,9 +811,10 @@ uint8_t SVM30::SendToSVM() {
             printf("0x%02X ", _Send_BUF[i]);
     }
 
-    Wire.beginTransmission(_I2C_address);
-    Wire.write(_Send_BUF, _Send_BUF_Length);
-    Wire.endTransmission();
+    _i2cPort->beginTransmission(_I2C_address);
+    _i2cPort->write(_Send_BUF, _Send_BUF_Length);
+
+    if( _i2cPort->endTransmission() != 0) ERR_PROTOCOL;
 
     _Send_BUF_Length = 0;
 
@@ -777,13 +890,15 @@ uint8_t SVM30::ReadFromSVM(uint8_t count) {
     j = i = _Receive_BUF_Length = 0;
 
     // 2 data bytes  + crc
-    Wire.requestFrom(_I2C_address, uint8_t (count / 2 * 3));
+    _i2cPort->requestFrom(_I2C_address, uint8_t (count / 2 * 3));
 
-    delay(5);
+    // 1.2 : the delay is now depending on the Measurement Commands typical
+    // timing as defined in the datasheet table 13
+    delay(ReadDelay);
 
-    while (Wire.available()) {
+    while (_i2cPort->available()) {
 
-        data[i++] = Wire.read();
+        data[i++] = _i2cPort->read();
 
         // 2 bytes data, 1 CRC
         if( i == 3) {

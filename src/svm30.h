@@ -45,6 +45,13 @@
  * - updated examples
  * - added examples 5 and 6
  *
+ * Version 1.2 / August 2020 / paulvha
+ * it seems that older product version(level 9) of the SGP30 / SVM30 fail to read raw data.
+ * added support to exclude reading the raw data.
+ *
+ * - added raw boolean (default true) to include(true) / exclude (false) raw data
+ * - added read-delay setting based on the kind of command request.
+ * - added support for inceptive baseline of the SGP30 (requires level 34 at least)
  *********************************************************************
  */
 #ifndef SVM30_H
@@ -55,7 +62,7 @@
 #include "Wire.h"               // for I2c
 
 // set driver version
-#define VERSION "1.1 / October 2019";
+#define VERSION "1.2 / August 2020";
 
 /* structure to return measurement values */
 typedef struct svm_values
@@ -120,6 +127,8 @@ typedef struct svm_values
 #define SGP30_TestOK                0xD400
 #define SGP30_Get_Feature_Set       0x202F
 #define SGP30_Measure_Raw_Signals   0x2050
+#define SGP30_Get_tvoc_inceptive_baseline 0x20B3        // Datasheet SGP30 May 2020 - requires level 34 - added 1.2
+#define SGP30_Set_tvoc_inceptive_baseline 0x2077        // Datasheet SGP30 May 2020 - requires level 34 - added 1.2
 #define SGP30_Read_ID               0x3682
 
 /* SHTC1 information  */
@@ -162,12 +171,21 @@ class SVM30
     void EnableDebugging(bool act);
 
     /**
-     * @brief Initialize the communication & start SGP30
+     * @brief Initialize the communication & start SGP30 (use wire)
      *
      * @return :
      *   true on success else false
      */
     bool begin();
+
+    /**
+     * @brief Manual assigment I2C communication port added 1.2
+     *
+     * @param port : I2C communication channel to be used
+     *
+     * User must have performed the wirePort.begin() in the sketch.
+     */
+    bool begin(TwoWire *wirePort);
 
     /**
      * @brief check if SVM30 sensors are available (read ID)
@@ -284,6 +302,19 @@ class SVM30
     bool SetBaseLines(uint32_t baseline);
 
     /**
+     * @brief : get Inceptivebaseline  (impact TVOC only)
+     *
+     * See datasheet May 2020 SGP30
+     *
+     * !!! REQUIRES LEVEL 34 FEATURE SET !!!
+     *
+     * @return :
+     *   true on success else false
+     */
+    bool GetInceptiveBaseLine_TVOC(uint16_t *baseline);
+    bool SetInceptiveBaseLine_TVOC(uint16_t baseline);
+
+    /**
      * @brief set humidity on SGP30
      *
      * @param humidity: humidity value to set
@@ -300,11 +331,15 @@ class SVM30
     /**
      * @brief : read all measurement values from the sensor and store in structure
      * @param v: pointer to structure to store
+     * @param raw: if true it will try to read the raw values from the SGP30 (update 1.2)
+     *
+     * It seems that older version (level 9) of the SGP30 do not support reading raw, hence the "raw" -option
+     * has been added as an option to exclude. By default it will read to stay backward compatible
      *
      * @return :
      *   true on success else false
      */
-    bool GetValues(struct svm_values *v);
+    bool GetValues(struct svm_values *v, bool raw = true);
 
     /**
      * @brief : Set temperature.
@@ -324,10 +359,12 @@ class SVM30
     uint8_t _Receive_BUF_Length;
     uint8_t _Send_BUF_Length;
     uint8_t _I2C_address;       // I2C address to use (SGP30 or SHTC1)
+    TwoWire *_i2cPort;          // holds the I2C port
     bool    _SelectTemp;        // select temperature (true = celsius)
     bool     _SVM30_Debug;      // program debug level
     bool    _started;           // indicate the SGP30 measurement has started
     uint8_t _wait;              // wait time after sending command
+    unsigned long   ReadDelay = 10;  // time to wait after requesting from update 1.2
 
     /** supporting routines */
     bool StartSGP30();
