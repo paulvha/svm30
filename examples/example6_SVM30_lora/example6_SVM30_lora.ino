@@ -256,7 +256,7 @@ void ProcessData()
   struct svm_values v;
 
   if (! svm.GetValues(&v))
-      Errorloop("Error during reading values");
+      Errorloop((char *) "Error during reading values");
 
   fCO2_Total += (float)  v.CO2eq;
   fTVOC_Total += (float) v.TVOC;
@@ -267,13 +267,13 @@ void ProcessData()
   if (SKETCH_DEBUG) {
       Serial.print("SVM_id; ");
       Serial.println(SVM_id, HEX);
-      disp_info("\nCounter_Pm:", &Counter_Pm, false);
-      disp_info("CO2 Total  :", &fCO2_Total, true);
-      disp_info("TVOC Total:",&fTVOC_Total, true);
-      disp_info("CO2_Sensor  :", &v.CO2eq, false);
-      disp_info("TVOC_Sensor:",&v.TVOC, false);
-      disp_info("Temperature:", &SVM_Temp, true);
-      disp_info("Humidity:", &SVM_Humi, true);
+      disp_info((char *) "\nCounter_Pm:", &Counter_Pm, false);
+      disp_info((char *)"CO2 Total  :", &fCO2_Total, true);
+      disp_info((char *)"TVOC Total:",&fTVOC_Total, true);
+      disp_info((char *)"CO2_Sensor  :", &v.CO2eq, false);
+      disp_info((char *)"TVOC_Sensor:",&v.TVOC, false);
+      disp_info((char *)"Temperature:", &SVM_Temp, true);
+      disp_info((char *)"Humidity:", &SVM_Humi, true);
       Serial.println();
   }
 }
@@ -310,10 +310,10 @@ void do_send(osjob_t* j) {
   if (SKETCH_DEBUG) {
     Serial.print("\t\tPacket queued\nSVM_ID: ");
     Serial.println(SVM_id, HEX);
-    disp_info("Temp:\t", &temp_int, false);
-    disp_info("RH:\t", &rh_int, false);
-    disp_info("CO2_Avg:",&CO2_Avg_int, false);
-    disp_info("TVOC_Avg:",&TVOC_Avg_int, false);
+    disp_info((char *)"Temp:\t", &temp_int, false);
+    disp_info((char *)"RH:\t", &rh_int, false);
+    disp_info((char *)"CO2_Avg:",&CO2_Avg_int, false);
+    disp_info((char *)"TVOC_Avg:",&TVOC_Avg_int, false);
   }
 
   // Next TX is scheduled after TX_COMPLETE event.
@@ -373,7 +373,7 @@ void setup() {
   Serial.println(svm.GetDriverVersion());
 
   // try to detect SVM30 sensors
-  if ( ! svm.probe() ) Errorloop("could not detect SVM30 sensors");
+  if ( ! svm.probe() ) Errorloop((char *) "could not detect SVM30 sensors");
   else Serial.println(F("SVM30 detected"));
 
   // read device serial number
@@ -478,7 +478,7 @@ void GetDeviceInfo()
   char id[20];
 
   if ( ! svm.GetId(SGP30, buf))
-      Errorloop("could not read SGP30 id");
+      Errorloop((char *) "could not read SGP30 id");
 
   if(SKETCH_DEBUG) {
     Serial.print(F("\nSVM30 / SGP30 id : "));

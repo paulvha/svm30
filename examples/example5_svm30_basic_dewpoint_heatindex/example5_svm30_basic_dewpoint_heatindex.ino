@@ -144,7 +144,7 @@ void setup() {
   Serial.println(svm.GetDriverVersion());
     
   // try to detect SVM30 sensors
-  if (svm.probe() == false) Errorloop("could not detect SVM30 sensors");
+  if (svm.probe() == false) Errorloop((char *) "could not detect SVM30 sensors");
   else Serial.println(F("SVM30 detected"));
 
   // read and display the ID
@@ -186,7 +186,7 @@ void KeepTrigger(uint8_t del)
     startMillis = millis();
     
     if (! svm.TriggerSGP30())
-      Errorloop("Error during trigger waiting");
+      Errorloop((char *) "Error during trigger waiting");
       
     // this gives 1Hz /1000ms (aboutisch)
     while(millis() - startMillis < 1000);
@@ -201,7 +201,7 @@ void read_values() {
   struct svm_values v;
 
   if (! svm.GetValues(&v))
-      Errorloop("Error during reading values");
+      Errorloop((char *) "Error during reading values");
 
   Serial.print(F("CO2 equivalent : "));
   Serial.print(v.CO2eq);
@@ -239,14 +239,14 @@ void read_id() {
   char  id[15];
   
   if ( ! svm.GetId(SGP30, buf))
-      Errorloop("could not read SGP30 id");
+      Errorloop((char *) "could not read SGP30 id");
 
   Serial.print(F("\nSGP30 id : "));
   sprintf(id, "%04x %04x %04x", buf[0], buf[1], buf[2]);
   Serial.println(id);
 
   if (svm.GetId(SHTC1, buf) == false)
-      Errorloop("could not read SHTC1 id");
+      Errorloop((char *) "could not read SHTC1 id");
 
   Serial.print(F("SHTC1 id : "));
   // only bit 5:0 matter (source: datasheet)
@@ -262,7 +262,7 @@ void read_featureSet(){
   char buf[2];
   
   if ( ! svm.GetFeatureSet(buf))
-      Errorloop("could not read SGP30 feature set");
+      Errorloop((char *) "could not read SGP30 feature set");
 
   Serial.print(F("\nSGP30 product type : "));
   Serial.print((buf[0] & 0xf0), HEX);

@@ -170,7 +170,7 @@ void setup() {
   Serial.println(svm.GetDriverVersion());
 
   // try to detect SVM30 sensors
-  if (svm.probe() == false) Errorloop("could not detect SVM30 sensors");
+  if (svm.probe() == false) Errorloop((char *) "could not detect SVM30 sensors");
   else Serial.println(F("SVM30 detected"));
 
   // read and display the ID
@@ -214,7 +214,7 @@ void update_baseline(uint16_t base_co2, uint16_t base_TVOC, bool ind ){
 
   /* only update baseline AFTER calibration phase  */
   if (! svm.GetBaseLine_TVOC(&baseline))
-        Errorloop("could not read SGP30 TVOC baseline");
+        Errorloop((char *) "could not read SGP30 TVOC baseline");
 
   if (baseline == 0) return;
 
@@ -225,14 +225,14 @@ void update_baseline(uint16_t base_co2, uint16_t base_TVOC, bool ind ){
 
     if (base_co2 != 0) {
       if (! svm.SetBaseLine_CO2(base_co2))
-          Errorloop("Error during updating baseline CO2");
+          Errorloop((char *) "Error during updating baseline CO2");
       }
     else
       Serial.println("Skipping update baseline CO2 equivalent");
 
     if (base_TVOC != 0) {
       if (! svm.SetBaseLine_TVOC(base_TVOC))
-          Errorloop("Error during updating baseline TVOC");
+          Errorloop((char *) "Error during updating baseline TVOC");
       }
     else
       Serial.println("Skipping update baseline TVOC");
@@ -249,7 +249,7 @@ void update_baseline(uint16_t base_co2, uint16_t base_TVOC, bool ind ){
     base32 = base_TVOC << 16 | base_co2;
 
     if (! svm.SetBaseLines(base32)) {
-        Errorloop("Error during updating baselines");
+        Errorloop((char *) "Error during updating baselines");
         return;
     }
   }
@@ -280,7 +280,7 @@ void KeepTrigger(uint8_t del)
     startMillis = millis();
 
     if (! svm.TriggerSGP30())
-      Errorloop("Error during trigger waiting");
+      Errorloop((char *) "Error during trigger waiting");
 
     // this gives 1Hz /1000ms (aboutisch)
     while(millis() - startMillis < 1000);
@@ -294,7 +294,7 @@ void KeepTrigger(uint8_t del)
 void read_values() {
 
   if (! svm.GetValues(&v))
-      Errorloop("Error during reading values");
+      Errorloop((char *) "Error during reading values");
 
   Serial.print(F("CO2 equivalent : "));
   Serial.print(v.CO2eq);
@@ -327,14 +327,14 @@ void read_id() {
   char  id[15];
 
   if ( ! svm.GetId(SGP30, buf))
-      Errorloop("could not read SGP30 id");
+      Errorloop((char *) "could not read SGP30 id");
 
   Serial.print(F("\nSGP30 id : "));
   sprintf(id, "%04x %04x %04x", buf[0], buf[1], buf[2]);
   Serial.println(id);
 
   if (svm.GetId(SHTC1, buf) == false)
-      Errorloop("could not read SHTC1 id");
+      Errorloop((char *) "could not read SHTC1 id");
 
   Serial.print(F("SHTC1 id : "));
 
@@ -351,7 +351,7 @@ void read_featureSet(){
   char buf[2];
 
   if ( ! svm.GetFeatureSet(buf))
-      Errorloop("could not read SGP30 feature set");
+      Errorloop((char *) "could not read SGP30 feature set");
 
   Serial.print(F("\nSGP30 product type : "));
   Serial.print((buf[0] & 0xf0), HEX);
@@ -380,13 +380,13 @@ void read_baseline(bool ind){
     // Serial.println("read individual");
 
     if (! svm.GetBaseLine_CO2(&baseline))
-        Errorloop("could not read SGP30 CO2 baseline");
+        Errorloop((char *) "could not read SGP30 CO2 baseline");
 
     Serial.print(F(" CO2 equivalent baseline : 0x"));
     Serial.print(baseline, HEX);
 
     if (! svm.GetBaseLine_TVOC(&baseline))
-        Errorloop("could not read SGP30 TVOC baseline");
+        Errorloop((char *) "could not read SGP30 TVOC baseline");
 
     Serial.print(F(", TVOC baseline : 0x"));
     Serial.println(baseline, HEX);
@@ -397,7 +397,7 @@ void read_baseline(bool ind){
     //Serial.println("read with one call");
 
     if (! svm.GetBaseLines(&base32))
-        Errorloop("could not read SGP30 baselines");
+        Errorloop((char *) "could not read SGP30 baselines");
 
     Serial.print(F(" CO2 equivalent baseline : 0x"));
     baseline = base32 & 0xffff;

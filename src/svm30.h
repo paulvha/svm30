@@ -52,6 +52,8 @@
  * - added raw boolean (default true) to include(true) / exclude (false) raw data
  * - added read-delay setting based on the kind of command request.
  * - added support for inceptive baseline of the SGP30 (requires level 34 at least)
+ *
+
  *********************************************************************
  */
 #ifndef SVM30_H
@@ -65,7 +67,7 @@
 #define VERSION "1.2 / August 2020";
 
 /* structure to return measurement values */
-typedef struct svm_values
+struct svm_values
 {
     uint16_t   r_humidity;    // SHTC1 (raw data from sensor)
     uint16_t   r_temperature; // SHTC1 (raw data from sensor)
@@ -363,7 +365,7 @@ class SVM30
     bool    _SelectTemp;        // select temperature (true = celsius)
     bool     _SVM30_Debug;      // program debug level
     bool    _started;           // indicate the SGP30 measurement has started
-    uint8_t _wait;              // wait time after sending command
+    unsigned long _wait;              // wait time after sending command
     unsigned long   ReadDelay = 10;  // time to wait after requesting from update 1.2
 
     /** supporting routines */

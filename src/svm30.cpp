@@ -52,6 +52,12 @@
  * - added raw boolean (default true) to include(true) / exclude (false) raw data
  * - added read-delay setting based on the kind of command request.
  * - added support for inceptive baseline of the SGP30 (requires level 34 at least)
+ *
+ * Version 1.3 / October 2020 / paulvha
+ * - Added support for Artemis / Apollo3 boards
+ * - fixed some typo's
+ * - added example8 (display including a LCD screen)
+ *
  *********************************************************************
  */
 
@@ -814,7 +820,7 @@ uint8_t SVM30::SendToSVM() {
     _i2cPort->beginTransmission(_I2C_address);
     _i2cPort->write(_Send_BUF, _Send_BUF_Length);
 
-    if( _i2cPort->endTransmission() != 0) ERR_PROTOCOL;
+    if( _i2cPort->endTransmission() != 0) return ERR_PROTOCOL;
 
     _Send_BUF_Length = 0;
 

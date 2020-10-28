@@ -26,7 +26,7 @@
  * connected to MEGA2560
  * 
  * SVM30              MEGA2560
- * 1. SDL  -----------   SDL
+ * 1. SCL  -----------   SCL
  * 2. GND  -----------   GND
  * 3. VCC  -----------   +5V
  * 4. SDA  -----------   SDA
@@ -34,7 +34,7 @@
  * connected to UNO (might cause low memory issues)
  * 
  * SVM30                UNO
- * 1. SDL  -----------   A5
+ * 1. SCL  -----------   A5
  * 2. GND  -----------   GND
  * 3. VCC  -----------   +5V
  * 4. SDA  -----------   A4
@@ -47,7 +47,7 @@
  * e.g. https://www.sparkfun.com/products/12009
  *****************************************************************************************
  * SVM30               ESP32
- * 1. SDL  ----lll-----  SCL (pin 22)
+ * 1. SCL  ----lll-----  SCL (pin 22)
  * 2. GND  -----------   GND
  * 3. VCC  -----------   +5V/VUSB
  * 4. SDA  ----lll-----  SDA (pin 21)
@@ -71,7 +71,7 @@
  * e.g. https://www.sparkfun.com/products/12009
  ***************************************************************************************** 
  * SVM30              ESP8266
- * 1. SDL  ----lll----   SDL
+ * 1. SCL  ----lll----   SDL
  * 2. GND  -----------   GND
  * 3. VCC  -----------   VIN
  * 4. SDA  ----lll----   SDA
@@ -138,7 +138,7 @@ void setup() {
   Serial.println(svm.GetDriverVersion());
     
   // try to detect SVM30 sensors
-  if (svm.probe() == false) Errorloop("could not detect SVM30 sensors");
+  if (svm.probe() == false) Errorloop((char *) "could not detect SVM30 sensors");
   else Serial.println(F("SVM30 detected"));
 
   // read and display the ID
@@ -186,7 +186,7 @@ void KeepTrigger(uint8_t del)
     startMillis = millis();
     
     if (! svm.TriggerSGP30())
-      Errorloop("Error during trigger waiting");
+      Errorloop((char *) "Error during trigger waiting");
       
     // this gives 1Hz /1000ms (aboutisch)
     while(millis() - startMillis < 1000);
@@ -200,7 +200,7 @@ void KeepTrigger(uint8_t del)
 void read_values() {
 
   if (! svm.GetValues(&v))
-      Errorloop("Error during reading values");
+      Errorloop((char *) "Error during reading values");
 
   Serial.print(F("CO2 equivalent : "));
   Serial.print(v.CO2eq);
@@ -233,7 +233,7 @@ void update_humidity() {
   Serial.print(F("update humidity..."));
   
   if ( ! svm.SetHumidity(v.absolute_hum))
-      Errorloop("could not update humidity on the SGP30");
+      Errorloop((char *) "could not update humidity on the SGP30");
   
   // give time to settle (max 10 according to datasheet)
   delay(10);
@@ -250,14 +250,14 @@ void read_id() {
   char  id[15];
   
   if ( ! svm.GetId(SGP30, buf))
-      Errorloop("could not read SGP30 id");
+      Errorloop((char *) "could not read SGP30 id");
 
   Serial.print(F("\nSGP30 id : "));
   sprintf(id, "%04x %04x %04x", buf[0], buf[1], buf[2]);
   Serial.println(id);
 
   if (svm.GetId(SHTC1, buf) == false)
-      Errorloop("could not read SHTC1 id");
+      Errorloop((char *) "could not read SHTC1 id");
 
   Serial.print(F("SHTC1 id : "));
   // only bit 5:0 matter (source: datasheet)
@@ -273,7 +273,7 @@ void read_featureSet(){
   char buf[2];
   
   if ( ! svm.GetFeatureSet(buf))
-      Errorloop("could not read SGP30 feature set");
+      Errorloop((char *) "could not read SGP30 feature set");
 
   Serial.print(F("\nSGP30 product type : "));
   Serial.print((buf[0] & 0xf0), HEX);
@@ -292,13 +292,13 @@ void read_baseline(){
   uint16_t baseline;
   
   if (! svm.GetBaseLine_CO2(&baseline))
-      Errorloop("could not read SGP30 CO2 baseline");
+      Errorloop((char *) "could not read SGP30 CO2 baseline");
 
   Serial.print(F(" CO2 equivalent baseline : 0x"));
   Serial.print(baseline, HEX);
 
   if (! svm.GetBaseLine_TVOC(&baseline))
-      Errorloop("could not read SGP30 TVOC baseline");
+      Errorloop((char *) "could not read SGP30 TVOC baseline");
   
   Serial.print(F(", TVOC baseline : 0x"));
   Serial.println(baseline, HEX);
