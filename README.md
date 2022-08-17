@@ -43,6 +43,9 @@ Obtain the zip and install like any other.
 
 ## Versioning
 
+### Version 1.3.1 / August 2022 / paulvha
+ * fixed _pf_buffer_ warning on ESP32 when compiling with -Werror=all
+
 ### Version 1.3 / October 2020 / paulvha
  * Added support for Artemis / Apollo3 boards
  * fixed some typo's and some small coding issues

@@ -25,7 +25,9 @@
 #ifndef _printf_h_
 #define _printf_h_
 
-#ifndef ARDUINO_ARCH_APOLLO3     // Version 1.2 : Apollo3 has already printf defined in mbed
+// Version 1.2 : Apollo3 has already printf defined in mbed
+// Version 1.3.1 : issue with ESP32 -Werror=all
+#if not defined ARDUINO_ARCH_APOLLO3  && not defined ESP32
 
 #define _PRINTF_BUFFER_LENGTH_      64
 #define _Stream_Obj_                Serial
