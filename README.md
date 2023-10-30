@@ -43,6 +43,9 @@ Obtain the zip and install like any other.
 
 ## Versioning
 
+### October 2023
+ * Tested on UNO-R4 WIFI. Works unmodified on Wire. Wire1 can NOT be used as the SVM needs 5V.
+
 ### Version 1.3.1 / August 2022 / paulvha
  * fixed _pf_buffer_ warning on ESP32 when compiling with -Werror=all
 
@@ -66,7 +69,6 @@ Obtain the zip and install like any other.
 
 ### version 1.0 / September 20 2019
  * Initial version Arduino, ESP32, UNO, ESP8266
-
 
 ## Author
  * Paul van Haastrecht (paulvha@hotmail.com)
